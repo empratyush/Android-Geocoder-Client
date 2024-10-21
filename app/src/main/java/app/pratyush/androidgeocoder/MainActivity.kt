@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,8 +23,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.lifecycle.MutableLiveData
@@ -61,11 +64,12 @@ class MainActivity : ComponentActivity() {
                             }
 
                             items(items.value) { item ->
-                                Text("${item.latitude} ${item.longitude} ${item.countryName} ${item.postalCode}")
+
+                                Text("${item.toString()} ${item.longitude} ${item.countryName} ${item.postalCode}")
                             }
 
                         }
-                        LocationInputField(::loadInfo)
+                        LocationInputField(::reverseSearch, ::forwardSearch)
                     }
 
                 }
@@ -73,7 +77,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun loadInfo(latitude: Double, longitude: Double, maxResult: Int = 10) {
+    private fun reverseSearch(latitude: Double, longitude: Double, maxResult: Int = 10) {
 
         Geocoder(this)
             .getFromLocation(
@@ -85,38 +89,78 @@ class MainActivity : ComponentActivity() {
                 result.postValue(addresses)
             }
     }
+
+    private fun forwardSearch(locationName: String, maxResult: Int = 10) {
+        Geocoder(this)
+            .getFromLocationName(
+                locationName,
+                maxResult
+            ) { addresses ->
+                Log.d(TAG, "got the result : ${addresses.size}")
+                result.postValue(addresses)
+            }
+    }
+
 }
 
 @Composable
 fun LocationInputField(
-    onValuesSubmitted: (Double, Double) -> Unit
+    onValuesSubmitted: (Double, Double) -> Unit,
+    onForwardSearchSubmitted: (String) -> Unit,
+    modifier: Modifier = Modifier.fillMaxWidth(),
 ) {
 
     //https://en.wikipedia.org/wiki/Googleplex
     //Coordinates: 37.422°N 122.084°W
     var longitude by remember { mutableDoubleStateOf(-122.084) }
     var latitude by remember { mutableDoubleStateOf(37.422) }
+    var locationName by remember { mutableStateOf("delhi airport") }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally) {
         TextField(
+            modifier = modifier,
             value = "$latitude",
             onValueChange = { newValue ->
                 latitude = newValue.toDoubleOrNull() ?: 0.0
             },
-            label = { Text("Integer 1") },
+            label = { Text("latitude") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
         TextField(
+            modifier = modifier,
             value = "$longitude",
             onValueChange = { newValue ->
                 longitude = newValue.toDoubleOrNull() ?: 0.0
             },
-            label = { Text("Integer 2") },
+            label = { Text("longitude") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
         )
 
-        Button(onClick = { onValuesSubmitted(latitude, longitude) }) {
-            Text("Submit")
+        Button(
+
+            onClick = { onValuesSubmitted(latitude, longitude) }
+        ) {
+            Text("Submit (reverseSearch)")
         }
+
+        Text("")
+
+        TextField(
+            modifier = modifier,
+            value = locationName,
+            onValueChange = { newValue ->
+                locationName = newValue
+            },
+            label = { Text("location name") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text)
+        )
+
+        Button(onClick = { onForwardSearchSubmitted(locationName) }) {
+            Text("Submit (forwardSearch)")
+        }
+
     }
 }
